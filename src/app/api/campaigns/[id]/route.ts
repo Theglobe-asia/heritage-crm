@@ -1,18 +1,15 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-// GET campaign by ID
+// GET /api/campaigns/[id]
 export async function GET(
-  req: Request,
-  context: { params: { id: string } }
+  _req: Request,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const campaign = await prisma.campaign.findUnique({
-      where: { id: context.params.id },
-    });
-    if (!campaign) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
-    }
+    const { id } = await context.params;
+    const campaign = await prisma.campaign.findUnique({ where: { id } });
+    if (!campaign) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json(campaign);
   } catch (err) {
     console.error("Campaign GET error:", err);
@@ -20,15 +17,16 @@ export async function GET(
   }
 }
 
-// UPDATE campaign
+// PUT /api/campaigns/[id]
 export async function PUT(
   req: Request,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await context.params;
     const body = await req.json();
     const campaign = await prisma.campaign.update({
-      where: { id: context.params.id },
+      where: { id },
       data: {
         title: body.title,
         message: body.message,
@@ -44,14 +42,15 @@ export async function PUT(
   }
 }
 
-// DELETE campaign
+// DELETE /api/campaigns/[id]
 export async function DELETE(
-  req: Request,
-  context: { params: { id: string } }
+  _req: Request,
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    await prisma.report.deleteMany({ where: { campaignId: context.params.id } });
-    await prisma.campaign.delete({ where: { id: context.params.id } });
+    const { id } = await context.params;
+    await prisma.report.deleteMany({ where: { campaignId: id } });
+    await prisma.campaign.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("Campaign DELETE error:", err);

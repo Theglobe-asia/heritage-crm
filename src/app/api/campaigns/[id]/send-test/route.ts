@@ -12,37 +12,47 @@ function renderMessage(msg: string) {
   return safe.replace(/\n/g, "<br/>");
 }
 
-export async function POST(_req: Request, context: any) {
+// POST /api/campaigns/[id]/send-test
+export async function POST(
+  _req: Request,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
-    const { id } = context.params;
-    const c = await prisma.campaign.findUnique({ where: { id } });
-    if (!c) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const { id } = await context.params;
 
-    const to = process.env.TEST_EMAIL;
-    if (!to) return NextResponse.json({ error: "TEST_EMAIL not set" }, { status: 400 });
+    const campaign = await prisma.campaign.findUnique({ where: { id } });
+    if (!campaign) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    const html = `
+    const testEmail = process.env.TEST_EMAIL;
+    if (!testEmail) {
+      return NextResponse.json({ error: "TEST_EMAIL not set" }, { status: 400 });
+    }
+
+    const htmlBody = `
       <div style="font-family:sans-serif; line-height:1.5; color:#111">
-        <h2 style="color:#f3c969; margin:0 0 8px">${escapeHtml(c.title)}</h2>
-        <div style="margin:0 0 16px;">${renderMessage(c.message)}</div>
+        <h2 style="color:#f3c969; margin:0 0 8px">${escapeHtml(campaign.title)}</h2>
+        <div style="margin:0 0 16px;">${renderMessage(campaign.message)}</div>
         <a href="https://theglobeasia.com/whats-new/"
            style="display:inline-block; padding:10px 18px; background:#f3c969; color:#000;
                   border-radius:6px; text-decoration:none; font-weight:bold;">
           What's New!
         </a>
+        <footer style="margin-top:20px; font-size:12px; color:#666;">
+          The Globe in Pattaya - the hidden Gem where nights shine brighter.
+        </footer>
       </div>
     `;
 
     await resend.emails.send({
       from: `${process.env.EMAIL_FROM_NAME} <${process.env.EMAIL_FROM_ADDRESS}>`,
-      to,
-      subject: `[TEST] ${c.title}`,
-      html,
+      to: testEmail,
+      subject: `[TEST] ${campaign.title}`,
+      html: htmlBody,
     });
 
-    return NextResponse.json({ success: true, to });
+    return NextResponse.json({ success: true });
   } catch (err) {
-    console.error("send-test error:", err);
-    return NextResponse.json({ error: "Failed to send test" }, { status: 500 });
+    console.error("Campaign SEND-TEST error:", err);
+    return NextResponse.json({ error: "Failed to send test email" }, { status: 500 });
   }
 }
