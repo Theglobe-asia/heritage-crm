@@ -1,61 +1,81 @@
+// scripts/worker.ts
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
-import { sendEmail } from "../lib/email";
-import { renderWhatsNew } from "../lib/render";
+import { sendEmail } from "@/lib/email";
+import { renderWhatsNewEmail } from "@/lib/render";
 
 const db = new PrismaClient();
-const RATE = parseInt(process.env.SEND_RATE_PER_MINUTE || "600", 10);
-
-async function tick() {
-  const toSend = await db.message.findMany({
-    where: { status: "queued" },
-    orderBy: { createdAt: "asc" },
-    take: RATE,
-  });
-
-  for (const m of toSend) {
-    try {
-      const campaign = await db.campaign.findUnique({ where: { id: m.campaignId } });
-      if (!campaign) continue;
-      const contact = await db.contact.findUnique({ where: { id: m.contactId } });
-      if (!contact || contact.status !== "subscribed") continue;
-
-      const { html } = await renderWhatsNew({
-        promotionalMessage: campaign.promotionalMessage,
-        bannerTitle: campaign.bannerTitle,
-        ctaUrl: process.env.APP_BASE_URL!,
-        messageId: m.id,
-        contactId: contact.id,
-      });
-
-      const r = await sendEmail({
-        to: m.toEmail,
-        subject: campaign.subject,
-        html,
-        fromName: campaign.fromName,
-        fromEmail: campaign.fromEmail,
-      });
-
-      await db.message.update({
-        where: { id: m.id },
-        data: {
-          status: "sent",
-          providerId: r.id ?? null,
-          lastEventAt: new Date(),
-        },
-      });
-    } catch (err) {
-      await db.message.update({
-        where: { id: m.id },
-        data: { status: "failed", lastEventAt: new Date() },
-      });
-    }
-  }
-}
 
 async function main() {
-  await tick();
-  process.exit(0);
+  try {
+    // Pick due campaigns (Scheduled and time passed)
+    const dueCampaigns = await db.campaign.findMany({
+      where: {
+        status: "Scheduled",
+        scheduledAt: { lte: new Date() },
+      },
+    });
+
+    for (const campaign of dueCampaigns) {
+      console.log(`📩 Processing campaign: ${campaign.title}`);
+
+      // Resolve audience
+      const where =
+        campaign.audience === "ALL"
+          ? {}
+          : campaign.audience === "TEST"
+          ? { email: process.env.TEST_EMAIL || "" }
+          : { tag: campaign.audience as any };
+
+      const contacts = await db.contact.findMany({ where });
+
+      let sentCount = 0;
+      for (const contact of contacts) {
+        try {
+          const html = renderWhatsNewEmail({
+            title: campaign.title,
+            message: campaign.message,
+          });
+
+          await sendEmail({
+            to: contact.email,
+            subject: campaign.title,
+            html,
+          });
+
+          sentCount++;
+        } catch (err) {
+          console.error(`❌ Failed to send email to ${contact.email}`, err);
+        }
+      }
+
+      // Update campaign + report
+      await db.$transaction([
+        db.campaign.update({
+          where: { id: campaign.id },
+          data: { status: "Sent", sent: sentCount },
+        }),
+        db.report.upsert({
+          where: { campaignId: campaign.id },
+          create: {
+            campaignId: campaign.id,
+            sent: sentCount,
+            opened: 0,
+            clicked: 0,
+          },
+          update: { sent: sentCount },
+        }),
+      ]);
+
+      console.log(
+        `✅ Campaign "${campaign.title}" sent to ${sentCount} recipients.`
+      );
+    }
+  } catch (err) {
+    console.error("Worker error:", err);
+  } finally {
+    await db.$disconnect();
+  }
 }
 
 main();
