@@ -85,3 +85,12 @@ model Report {
   clicked    Int      @default(0)
   createdAt  DateTime @default(now())
 }
+
+model Template {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  subject   String
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
