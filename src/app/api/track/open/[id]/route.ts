@@ -1,33 +1,29 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-// Track open
-export async function GET(_: Request, { params, searchParams }: any) {
-  const campaignId = params.id;
-  const contactId = searchParams?.get("c");
+const ONE_BY_ONE_GIF = Buffer.from(
+  "R0lGODlhAQABAPAAAAAAAAAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==",
+  "base64"
+);
 
-  if (!campaignId || !contactId) {
-    return new NextResponse("Missing params", { status: 400 });
-  }
-
+export async function GET(_req: Request, context: any) {
   try {
-    await prisma.campaign.update({
-      where: { id: campaignId },
-      data: { opened: { increment: 1 } },
-    });
+    const { id } = context.params;
+    if (id) {
+      await prisma.campaign.update({
+        where: { id },
+        data: { opened: { increment: 1 } },
+      });
+    }
   } catch (err) {
-    console.error("Tracking open error", err);
+    console.error("track open error:", err);
   }
 
-  // Transparent pixel
-  const img = Buffer.from(
-    "R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==",
-    "base64"
-  );
-  return new NextResponse(img, {
+  return new Response(ONE_BY_ONE_GIF, {
     headers: {
       "Content-Type": "image/gif",
-      "Content-Length": img.length.toString(),
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      "Content-Length": ONE_BY_ONE_GIF.length.toString(),
     },
   });
 }
