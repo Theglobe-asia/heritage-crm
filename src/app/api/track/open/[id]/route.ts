@@ -1,29 +1,14 @@
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
 
-const ONE_BY_ONE_GIF = Buffer.from(
-  "R0lGODlhAQABAPAAAAAAAAAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==",
-  "base64"
-);
-
-export async function GET(_req: Request, context: any) {
+export async function GET(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
   try {
-    const { id } = context.params;
-    if (id) {
-      await prisma.campaign.update({
-        where: { id },
-        data: { opened: { increment: 1 } },
-      });
-    }
+    // TODO: log open event
+    return NextResponse.json({ success: true, type: "open", id: params.id });
   } catch (err) {
-    console.error("track open error:", err);
+    console.error("Track OPEN error:", err);
+    return NextResponse.json({ error: "Failed to track open" }, { status: 500 });
   }
-
-  return new Response(ONE_BY_ONE_GIF, {
-    headers: {
-      "Content-Type": "image/gif",
-      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-      "Content-Length": ONE_BY_ONE_GIF.length.toString(),
-    },
-  });
 }

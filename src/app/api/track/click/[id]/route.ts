@@ -1,16 +1,14 @@
-import prisma from "@/lib/prisma";
+import { NextResponse } from "next/server";
 
-export async function GET(_req: Request, context: any) {
-  const { id } = context.params;
+export async function GET(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
   try {
-    if (id) {
-      await prisma.campaign.update({
-        where: { id },
-        data: { clicked: { increment: 1 } },
-      });
-    }
+    // TODO: log click event
+    return NextResponse.json({ success: true, type: "click", id: params.id });
   } catch (err) {
-    console.error("track click error:", err);
+    console.error("Track CLICK error:", err);
+    return NextResponse.json({ error: "Failed to track click" }, { status: 500 });
   }
-  return Response.redirect("https://theglobeasia.com/whats-new/", 302);
 }
