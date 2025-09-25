@@ -1,16 +1,13 @@
-// src/app/api/contacts/[id]/route.ts
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-// ✅ GET one contact
+// GET /api/contacts/:id
 export async function GET(
-  req: Request,
-  context: { params: { id: string } }
+  _req: Request,
+  { params }: { params: { id: string } }
 ) {
   try {
-    const contact = await prisma.contact.findUnique({
-      where: { id: context.params.id },
-    });
+    const contact = await prisma.contact.findUnique({ where: { id: params.id } });
     if (!contact) {
       return NextResponse.json({ error: "Contact not found" }, { status: 404 });
     }
@@ -21,17 +18,25 @@ export async function GET(
   }
 }
 
-// ✅ UPDATE one contact
+// PUT /api/contacts/:id
 export async function PUT(
   req: Request,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const body = await req.json();
+    const data = await req.json();
+    const { email, firstName, lastName, tag } = data as {
+      email?: string;
+      firstName?: string;
+      lastName?: string;
+      tag?: "BASIC" | "SILVER" | "VIP" | "GOLD";
+    };
+
     const updated = await prisma.contact.update({
-      where: { id: context.params.id },
-      data: body,
+      where: { id: params.id },
+      data: { email, firstName, lastName, tag },
     });
+
     return NextResponse.json(updated);
   } catch (err) {
     console.error("Contact PUT error:", err);
@@ -39,15 +44,13 @@ export async function PUT(
   }
 }
 
-// ✅ DELETE one contact
+// DELETE /api/contacts/:id
 export async function DELETE(
-  req: Request,
-  context: { params: { id: string } }
+  _req: Request,
+  { params }: { params: { id: string } }
 ) {
   try {
-    await prisma.contact.delete({
-      where: { id: context.params.id },
-    });
+    await prisma.contact.delete({ where: { id: params.id } });
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("Contact DELETE error:", err);
