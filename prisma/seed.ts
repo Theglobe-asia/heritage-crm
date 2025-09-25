@@ -1,4 +1,5 @@
-import { PrismaClient, Tag, Audience, CampaignStatus } from "@prisma/client";
+// prisma/seed.ts
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -6,6 +7,7 @@ async function main() {
   console.log("🌱 Seeding database...");
 
   // 1. Clean old data
+  await prisma.report.deleteMany();
   await prisma.campaign.deleteMany();
   await prisma.contact.deleteMany();
 
@@ -13,41 +15,35 @@ async function main() {
   await prisma.contact.createMany({
     data: [
       {
-        email: "basic1@example.com",
-        firstName: "John",
-        lastName: "Basic",
-        tag: Tag.BASIC,
+        email: "test1@example.com",
+        firstName: "Alex",
+        lastName: "Chef",
+        tag: "BASIC",
       },
       {
-        email: "silver1@example.com",
-        firstName: "Alice",
-        lastName: "Silver",
-        tag: Tag.SILVER,
-      },
-      {
-        email: "vip1@example.com",
-        firstName: "Robert",
+        email: "vip@example.com",
+        firstName: "Maria",
         lastName: "VIP",
-        tag: Tag.VIP,
+        tag: "VIP",
       },
       {
-        email: "gold1@example.com",
-        firstName: "Sophia",
-        lastName: "Gold",
-        tag: Tag.GOLD,
+        email: process.env.TEST_EMAIL || "test@theglobeasia.com",
+        firstName: "Test",
+        lastName: "User",
+        tag: "SILVER",
       },
     ],
   });
 
-  // 3. Seed a test campaign
+  // 3. Seed a sample campaign
   await prisma.campaign.create({
     data: {
-      title: "Welcome Campaign",
-      message: "This is our first campaign test!",
-      audience: Audience.ALL,
+      title: "Welcome to The Globe Asia!",
+      message: "This is your first campaign. 🚀\nLine breaks are respected.",
+      audience: "ALL",
       sendOption: "Scheduled",
-      scheduledAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour later
-      status: CampaignStatus.Scheduled,
+      scheduledAt: new Date(Date.now() + 1000 * 60 * 10), // 10 mins later
+      status: "Scheduled",
     },
   });
 
