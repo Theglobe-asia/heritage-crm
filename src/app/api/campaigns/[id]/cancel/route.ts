@@ -2,10 +2,8 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-export async function POST(
-  req: Request,
-  context: { params: { id: string } }
-) {
+// Keep it simple: context typed as `any` to satisfy Next.js build
+export async function POST(req: Request, context: any) {
   try {
     const { id } = context.params;
 
