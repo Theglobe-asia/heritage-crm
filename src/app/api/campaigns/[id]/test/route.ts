@@ -1,14 +1,9 @@
 import { NextResponse } from "next/server";
 
 export async function POST(
-  req: Request,
-  { params }: { params: { id: string } }
+  _req: Request,
+  _context: { params: Promise<{ id: string }> }
 ) {
-  try {
-    // TODO: implement test logic
-    return NextResponse.json({ success: true, id: params.id });
-  } catch (err) {
-    console.error("Campaign TEST error:", err);
-    return NextResponse.json({ error: "Failed to run test" }, { status: 500 });
-  }
+  // No-op endpoint kept for compatibility with older UI.
+  return NextResponse.json({ ok: true });
 }

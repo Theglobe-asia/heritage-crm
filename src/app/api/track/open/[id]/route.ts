@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
 
 export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
+  _req: Request,
+  _context: { params: Promise<{ id: string }> }
 ) {
-  try {
-    // TODO: log open event
-    return NextResponse.json({ success: true, type: "open", id: params.id });
-  } catch (err) {
-    console.error("Track OPEN error:", err);
-    return NextResponse.json({ error: "Failed to track open" }, { status: 500 });
-  }
+  // Keep minimal/valid; tracking is handled elsewhere in current LOCKED flow.
+  const gif1x1 = Buffer.from(
+    "R0lGODlhAQABAPAAAP///wAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==",
+    "base64"
+  );
+  return new NextResponse(gif1x1, {
+    headers: { "Content-Type": "image/gif", "Cache-Control": "no-store" },
+  });
 }

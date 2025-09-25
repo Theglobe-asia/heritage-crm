@@ -1,14 +1,9 @@
 import { NextResponse } from "next/server";
 
 export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
+  _req: Request,
+  _context: { params: Promise<{ id: string }> }
 ) {
-  try {
-    // TODO: log click event
-    return NextResponse.json({ success: true, type: "click", id: params.id });
-  } catch (err) {
-    console.error("Track CLICK error:", err);
-    return NextResponse.json({ error: "Failed to track click" }, { status: 500 });
-  }
+  // Minimal valid handler; redirect to site.
+  return NextResponse.redirect("https://theglobeasia.com/whats-new/");
 }
