@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-// GET /api/contacts/:id
+// GET contact by ID
 export async function GET(
-  _req: Request,
-  { params }: { params: { id: string } }
+  req: Request,
+  context: { params: { id: string } }
 ) {
   try {
-    const contact = await prisma.contact.findUnique({ where: { id: params.id } });
+    const contact = await prisma.contact.findUnique({
+      where: { id: context.params.id },
+    });
     if (!contact) {
-      return NextResponse.json({ error: "Contact not found" }, { status: 404 });
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
     return NextResponse.json(contact);
   } catch (err) {
@@ -18,39 +20,38 @@ export async function GET(
   }
 }
 
-// PUT /api/contacts/:id
+// UPDATE contact
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const data = await req.json();
-    const { email, firstName, lastName, tag } = data as {
-      email?: string;
-      firstName?: string;
-      lastName?: string;
-      tag?: "BASIC" | "SILVER" | "VIP" | "GOLD";
-    };
-
-    const updated = await prisma.contact.update({
-      where: { id: params.id },
-      data: { email, firstName, lastName, tag },
+    const body = await req.json();
+    const contact = await prisma.contact.update({
+      where: { id: context.params.id },
+      data: {
+        email: body.email,
+        firstName: body.firstName,
+        lastName: body.lastName,
+        tag: body.tag,
+      },
     });
-
-    return NextResponse.json(updated);
+    return NextResponse.json(contact);
   } catch (err) {
     console.error("Contact PUT error:", err);
     return NextResponse.json({ error: "Failed to update contact" }, { status: 500 });
   }
 }
 
-// DELETE /api/contacts/:id
+// DELETE contact
 export async function DELETE(
-  _req: Request,
-  { params }: { params: { id: string } }
+  req: Request,
+  context: { params: { id: string } }
 ) {
   try {
-    await prisma.contact.delete({ where: { id: params.id } });
+    await prisma.contact.delete({
+      where: { id: context.params.id },
+    });
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("Contact DELETE error:", err);
