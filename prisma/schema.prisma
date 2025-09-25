@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+//
+// ✅ Tags for contacts
+//
+enum Tag {
+  BASIC
+  SILVER
+  VIP
+  GOLD
+}
+
+//
+// ✅ Campaign Audience
+//
+enum Audience {
+  TEST
+  ALL
+  BASIC
+  SILVER
+  VIP
+  GOLD
+}
+
+//
+// ✅ Campaign Status
+//
+enum CampaignStatus {
+  Draft
+  Scheduled
+  Processing
+  Sent
+}
+
+//
+// ✅ Contact model
+//
+model Contact {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  firstName String
+  lastName  String
+  tag       Tag      @default(BASIC)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+//
+// ✅ Campaign model
+//
+model Campaign {
+  id          String          @id @default(uuid())
+  title       String
+  message     String
+  audience    Audience
+  sendOption  String           // "Send Now" or "Scheduled"
+  scheduledAt DateTime?
+  status      CampaignStatus   @default(Draft)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  sent        Int              @default(0)
+  opened      Int              @default(0)
+  clicked     Int              @default(0)
+
+  // 🔗 Relation to Report
+  reports     Report[]
+}
+
+//
+// ✅ Report model
+//
+model Report {
+  id         String   @id @default(uuid())   
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  sent       Int      @default(0)
+  opened     Int      @default(0)
+  clicked    Int      @default(0)
+  createdAt  DateTime @default(now())
+}
