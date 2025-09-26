@@ -6,78 +6,91 @@ import { renderWhatsNewEmail } from "@/lib/render";
 
 const db = new PrismaClient();
 
-async function main() {
-  const due = await db.campaign.findMany({
-    where: { status: "Scheduled", scheduledAt: { lte: new Date() } },
+async function processScheduledCampaigns() {
+  const now = new Date();
+
+  // 1) Find a due campaign
+  const campaign = await db.campaign.findFirst({
+    where: { status: "Scheduled", scheduledAt: { lte: now } },
     orderBy: { createdAt: "asc" },
   });
 
-  for (const campaign of due) {
-    // lock
-    await db.campaign.update({
-      where: { id: campaign.id },
-      data: { status: "Processing" },
-    });
+  if (!campaign) return;
 
-    const audience = campaign.audience as
-      | "TEST"
-      | "ALL"
-      | "BASIC"
-      | "SILVER"
-      | "VIP"
-      | "GOLD";
+  // 2) Lock campaign for processing
+  await db.campaign.update({
+    where: { id: campaign.id },
+    data: { status: "Processing" },
+  });
 
-    const where =
-      audience === "ALL"
-        ? {}
-        : audience === "TEST"
-        ? { email: process.env.TEST_EMAIL || "" }
-        : { tag: audience as any };
+  // 3) Resolve audience
+  const audience = campaign.audience as
+    | "TEST"
+    | "ALL"
+    | "BASIC"
+    | "SILVER"
+    | "VIP"
+    | "GOLD";
 
-    const contacts = await db.contact.findMany({ where });
+  const where =
+    audience === "ALL"
+      ? {}
+      : audience === "TEST"
+      ? { email: process.env.TEST_EMAIL || "" }
+      : { tag: audience as any };
 
-    let sentCount = 0;
-    const html = renderWhatsNewEmail({
-      campaignId: campaign.id,
-      title: campaign.title,
-      message: campaign.message,
-    });
+  const contacts = await db.contact.findMany({ where });
 
-    for (const contact of contacts) {
-      try {
-        await sendEmail({
-          to: contact.email,
-          subject: campaign.title,
-          html,
-        });
-        sentCount++;
-      } catch (err) {
-        console.error(`❌ Error sending to ${contact.email}`, err);
-      }
-    }
-
-    // ✅ Fix: `where` must use `id`, not `campaignId`
-    await db.$transaction([
-      db.campaign.update({
-        where: { id: campaign.id },
-        data: { status: "Sent", sent: sentCount },
-      }),
-      await db.report.upsert({
-        where: { campaignId: campaign.id },
-        create: { campaignId: campaign.id, sent: sentCount, opened: 0, clicked: 0 },
-        update: { sent: sentCount },
+  // 4) Send emails
+  let sentCount = 0;
+  for (const contact of contacts) {
+    try {
+      const html = renderWhatsNewEmail({
+        campaignId: campaign.id,
+        contactId: contact.id,
+        title: campaign.title,
+        message: campaign.message,
       });
 
-    ]);
+      await sendEmail({
+        to: contact.email,
+        subject: campaign.title,
+        html,
+      });
+
+      sentCount++;
+    } catch (err) {
+      console.error(`❌ Failed to send to ${contact.email}`, err);
+    }
   }
 
-  console.log("✅ Worker finished.");
+  // 5) Mark as sent + sync report (using safe transaction form)
+  await db.$transaction(async (tx) => {
+    await tx.campaign.update({
+      where: { id: campaign.id },
+      data: { status: "Sent", sent: sentCount },
+    });
+
+    await tx.report.upsert({
+      where: { campaignId: campaign.id }, // ✅ campaignId is unique in schema
+      create: {
+        campaignId: campaign.id,
+        sent: sentCount,
+        opened: 0,
+        clicked: 0,
+      },
+      update: { sent: sentCount },
+    });
+  });
+
+  console.log(
+    `📩 Sent scheduled campaign "${campaign.title}" to ${sentCount} contacts.`
+  );
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
+processScheduledCampaigns()
+  .catch((err) => {
+    console.error("Worker error:", err);
   })
   .finally(async () => {
     await db.$disconnect();
