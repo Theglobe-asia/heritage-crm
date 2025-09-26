@@ -78,13 +78,14 @@ model Campaign {
 //
 model Report {
   id         String   @id @default(uuid())   
-  campaignId String
+  campaignId String   @unique   // ✅ ensure one report per campaign
   campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   sent       Int      @default(0)
   opened     Int      @default(0)
   clicked    Int      @default(0)
   createdAt  DateTime @default(now())
 }
+
 
 model Template {
   id        String   @id @default(uuid())

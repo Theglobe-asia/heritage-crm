@@ -62,11 +62,12 @@ async function main() {
         where: { id: campaign.id },
         data: { status: "Sent", sent: sentCount },
       }),
-      db.report.upsert({
-        where: { id: campaign.id }, // <-- must match your Report @id field
-        create: { id: campaign.id, campaignId: campaign.id, sent: sentCount, opened: 0, clicked: 0 },
+      await db.report.upsert({
+        where: { campaignId: campaign.id },
+        create: { campaignId: campaign.id, sent: sentCount, opened: 0, clicked: 0 },
         update: { sent: sentCount },
-      }),
+      });
+
     ]);
   }
 

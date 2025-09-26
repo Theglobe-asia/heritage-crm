@@ -72,11 +72,12 @@ export async function POST(req: Request) {
         }
       }
 
-      await prisma.report.upsert({
-        where: { campaignId: campaign.id },
-        create: { campaignId: campaign.id, sent: sentCount, opened: 0, clicked: 0 },
-        update: { sent: sentCount },
-      });
+          await prisma.report.upsert({
+            where: { campaignId: campaign.id },
+            create: { campaignId: campaign.id, sent: sentCount, opened: 0, clicked: 0 },
+            update: { sent: sentCount },
+          });
+
     }
 
     return NextResponse.json(campaign);
