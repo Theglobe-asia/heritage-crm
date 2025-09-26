@@ -56,14 +56,15 @@ async function main() {
       }
     }
 
+    // ✅ Fix: `where` must use `id`, not `campaignId`
     await db.$transaction([
       db.campaign.update({
         where: { id: campaign.id },
         data: { status: "Sent", sent: sentCount },
       }),
       db.report.upsert({
-        where: { campaignId: campaign.id },
-        create: { campaignId: campaign.id, sent: sentCount, opened: 0, clicked: 0 },
+        where: { id: campaign.id }, // <-- must match your Report @id field
+        create: { id: campaign.id, campaignId: campaign.id, sent: sentCount, opened: 0, clicked: 0 },
         update: { sent: sentCount },
       }),
     ]);
