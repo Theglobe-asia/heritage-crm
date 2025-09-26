@@ -7,55 +7,74 @@ import { renderWhatsNewEmail } from "@/lib/render";
 const db = new PrismaClient();
 
 async function main() {
-  const campaigns = await db.campaign.findMany({
+  const due = await db.campaign.findMany({
     where: { status: "Scheduled", scheduledAt: { lte: new Date() } },
+    orderBy: { createdAt: "asc" },
   });
 
-  for (const campaign of campaigns) {
-    const contacts = await db.contact.findMany({
-      where:
-        campaign.audience === "ALL"
-          ? {}
-          : campaign.audience === "TEST"
-          ? { email: process.env.TEST_EMAIL || "" }
-          : { tag: campaign.audience as any },
+  for (const campaign of due) {
+    // lock
+    await db.campaign.update({
+      where: { id: campaign.id },
+      data: { status: "Processing" },
     });
 
+    const audience = campaign.audience as
+      | "TEST"
+      | "ALL"
+      | "BASIC"
+      | "SILVER"
+      | "VIP"
+      | "GOLD";
+
+    const where =
+      audience === "ALL"
+        ? {}
+        : audience === "TEST"
+        ? { email: process.env.TEST_EMAIL || "" }
+        : { tag: audience as any };
+
+    const contacts = await db.contact.findMany({ where });
+
     let sentCount = 0;
+    const html = renderWhatsNewEmail({
+      campaignId: campaign.id,
+      title: campaign.title,
+      message: campaign.message,
+    });
 
     for (const contact of contacts) {
       try {
-        const html = renderWhatsNewEmail({
-          campaignId: campaign.id,
-          contactId: contact.id,
-          title: campaign.title,
-          message: campaign.message,
-        });
-
         await sendEmail({
           to: contact.email,
           subject: campaign.title,
           html,
         });
-
         sentCount++;
       } catch (err) {
         console.error(`❌ Error sending to ${contact.email}`, err);
       }
     }
 
-    await db.campaign.update({
-      where: { id: campaign.id },
-      data: { status: "Sent", sent: sentCount },
-    });
+    await db.$transaction([
+      db.campaign.update({
+        where: { id: campaign.id },
+        data: { status: "Sent", sent: sentCount },
+      }),
+      db.report.upsert({
+        where: { campaignId: campaign.id },
+        create: { campaignId: campaign.id, sent: sentCount, opened: 0, clicked: 0 },
+        update: { sent: sentCount },
+      }),
+    ]);
   }
 
-  console.log("Worker finished processing campaigns");
+  console.log("✅ Worker finished.");
 }
 
 main()
-  .catch((err) => {
-    console.error(err);
+  .catch((e) => {
+    console.error(e);
     process.exit(1);
   })
   .finally(async () => {

@@ -1,32 +1,29 @@
 // src/lib/render.ts
-import { PrismaClient } from "@prisma/client";
-import { v4 as uuid } from "uuid";
+// Safe HTML + line-break preserving renderer shared by Send Now + Scheduler.
 
-const db = new PrismaClient();
+function escapeHtml(s: string) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
 
-/**
- * Render the "What's New" email template with tracking links.
- */
-export async function renderWhatsNewEmail({
-  campaignId,
-  contactId,
-  title,
-  message,
-}: {
-  campaignId: string;
-  contactId: string;
+function renderMessage(msg: string) {
+  const safe = escapeHtml(msg ?? "").replace(/\r\n/g, "\n");
+  return safe.replace(/\n/g, "<br/>");
+}
+
+export type RenderWhatsNewArgs = {
   title: string;
   message: string;
-}) {
-  // If you don’t have a "template" table, skip DB call
-  // and just render inline HTML.
-  const trackingId = uuid();
+  // Optional to avoid TS errors if caller doesn’t need them
+  campaignId?: string;
+  contactId?: string;
+};
 
+export function renderWhatsNewEmail({ title, message }: RenderWhatsNewArgs) {
   return `
     <div style="font-family:sans-serif; line-height:1.5; color:#111">
-      <h2 style="color:#f3c969; margin:0 0 8px">${title}</h2>
-      <div style="margin:0 0 16px;">${message.replace(/\n/g, "<br/>")}</div>
-      <a href="https://theglobeasia.com/whats-new/?tid=${trackingId}"
+      <h2 style="color:#f3c969; margin:0 0 8px">${escapeHtml(title)}</h2>
+      <div style="margin:0 0 16px;">${renderMessage(message)}</div>
+      <a href="https://theglobeasia.com/whats-new/"
          style="display:inline-block; padding:10px 18px; background:#f3c969; color:#000;
                 border-radius:6px; text-decoration:none; font-weight:bold;">
         What's New!
